@@ -1,0 +1,57 @@
+---
+- name: Create primary dd agent configuration file
+  win_template: # create corresponding template
+    src: datadog.yaml.j2
+    dest: "{{ ansible_facts.env['ProgramData'] }}\\Datadog\\datadog.yaml" # Create dest/src and variables
+  notify: restart datadog-win-agent
+
+- name: Ensure configuration directories exist for each dd check process 
+  win_file:
+    path: "{{ ansible_facts.env['ProgramData'] }}\\Datadog\\conf.d\\{{ item }}.d"
+    state: directory
+  with_items: '{{ datadog_checks|list }}'
+
+- name: Create a configuration file for each check of dd
+  win_template:
+    src: checks.yaml.j2
+    dest: "{{ ansible_facts.env['ProgramData'] }}\\Datadog\\conf.d\\{{ item }}.d\\conf.yaml"
+  with_items: "{{ datadog_checks|list }}"
+  notify: restart datadog-win-agent
+
+- name: Remove old configuration file for each check of dd
+  win_file:
+    path: "{{ ansible_facts.env['ProgramData'] }}\\Datadog\\conf.d\\{{ item }}.yaml"
+    state: absent
+  with_items: "{{ datadog_checks|list }}"
+  notify: restart datadog-win-agent
+
+- name: Create trace agent configuration file
+  win_template:
+    src: datadog.conf.j2
+    dest: "{{ ansible_facts.env['ProgramData'] }}\\Datadog\\trace-agent.conf"
+  notify: restart datadog-win-agent
+
+- name: Create process agent configuration file
+  win_template:
+    src: datadog.conf.j2
+    dest: "{{ ansible_facts.env['ProgramData'] }}\\Datadog\\process-agent.conf"
+  notify: restart datadog-win-agent
+
+- name: Ensure dd agent is running
+  win_service:
+    name: datadogagent
+    state: started
+    enabled: yes
+  when: # Conditions to avoid conflict with check mode or other check operations 
+
+- name: Ensure dd agent is not running
+  win_service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  when: # Conditions to avoid conflict with running dd checks and dd being enabled 
+  with_list:
+  - datadogagent
+  - datadog-agent-process
+  - datadog-agent-trace
+   
