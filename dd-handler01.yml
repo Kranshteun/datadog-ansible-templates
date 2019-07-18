@@ -1,0 +1,13 @@
+---
+- name: restart dd agent
+  service:
+    name: dd agent
+    state: restarted
+  when: 
+
+- name: restart datadog-win-agent
+  win_service:
+    name: datadogagent
+    state: restarted
+    force_dependent_services: true
+  when: 
